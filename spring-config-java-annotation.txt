@@ -1,0 +1,202 @@
+Scanning for Component Classes
+
+Spring scans Java classes for special annotations and automatically register the beans in the Spring container
+
+Scan with:
+<context:component-scan base-package="com.gg.springdemo"/>
+
+Then add @Component annotation above class you waant to retrieve as bean.
+
+Default bean id: class name, make first letter lower-case
+TennisCoach -> tennisCoach
+
+
+Autowiring Injection types:
+
+1.Constructor
+As of Spring Framework 4.3, an @Autowired annotation on such a constructor is no longer necessary if the target bean only defines one constructor to begin with. However, if several constructors are available, at least one must be annotated to teach the container which one to use.
+
+
+2.Setter
+We can autowire whatever method we want!(method injection)
+
+
+3.Field
+Injects dependencies by setting field values on class directly(even private fields). This is accoplished by using Java Reflection!
+No need for setter methods!
+
+
+FAQ: What if there are multiple FortuneService implementations?
+
+When using autowiring, what if there are multiple FortuneService implementations? Like in the image below?
+Spring has special support to handle this case. Use the @Qualifier annotation. We'll cover this later in the course with slides and code examples. But don't worry, we will address all scenarios :-)
+
+Use @Qualifier("myBeanId") and add custom name i the component @Component("myBeanId)
+
+
+Annotations - Default Bean Names ... and the Special Case
+
+In general, when using Annotations, for the default bean name, Spring uses the following rule.
+
+If the annotation's value doesn't indicate a bean name, an appropriate name will be built based on the short name of the class (with the first letter lower-cased).
+
+For example:
+
+HappyFortuneService --> happyFortuneService
+
+---
+
+However, for the special case of when BOTH the first and second characters of the class name are upper case, then the name is NOT converted.
+
+For the case of RESTFortuneService
+
+RESTFortuneService --> RESTFortuneService
+
+No conversion since the first two characters are upper case.
+
+Behind the scenes, Spring uses the Java Beans Introspector to generate the default bean name.
+
+
+@Qualifier is a nice feature, but it is tricky when used with Constructors.
+
+The syntax is much different from other examples and not exactly intuitive.  Consider this the "deep end of the pool" when it comes to Spring configuration LOL :-)
+
+ You have to place the @Qualifier annotation inside of the constructor arguments.
+
+
+
+
+
+FAQ: How to inject properties file using Java annotations
+
+
+
+Answer:
+
+This solution will show you how inject values from a properties file using annotatons. The values will no longer be hard coded in the Java code.
+
+1. Create a properties file to hold your properties. It will be a name value pair.  
+
+New text file:  src/sport.properties
+
+foo.email=myeasycoach@luv2code.com
+foo.team=Silly Java Coders
+Note the location of the properties file is very important. It must be stored in src/sport.properties
+
+2. Load the properties file in the XML config file.
+
+File: applicationContext.xml
+
+Add the following lines:
+
+    <context:property-placeholder location="classpath:sport.properties"/>  
+
+This should appear just after the <context:component-scan .../> line
+
+3. Inject the properties values into your Swim Coach: SwimCoach.java
+
+   
+
+@Value("${foo.email}")
+private String email;
+    
+@Value("${foo.team}")
+private String team;
+
+
+
+Explicitly Specify Bean Scope
+@Component
+@Scope("singleton")
+
+
+Lifesycle methods:
+Define the methods for init and destroy and add annotation @PostConstruct, @PreDestroy
+
+Special Note about @PostConstruct and @PreDestroy Method Signatures
+
+I want to provide additional details regarding the method signatures of @PostContruct and @PreDestroy methods.
+
+Access modifier
+
+The method can have any access modifier (public, protected, private)
+
+Return type
+The method can have any return type. However, "void' is most commonly used. If you give a return type just note that you will not be able to capture the return value. As a result, "void" is commonly used.
+
+Method name
+The method can have any method name.
+
+Arguments
+The method can not accept any arguments. The method should be no-arg.
+
+
+
+HEADS UP - FOR JAVA 9, 10 and 11 USERS - @PostConstruct and @PreDestroy
+
+If you are using Java 9 or higher, then you will encounter an error when using @PostConstruct and @PreDestroy in your code. 
+
+These are the steps to resolve it. Come back to the lecture if you hit the error. 
+
+Error
+
+Eclipse is unable to import @PostConstruct or @PreDestroy
+
+This happens because of Java 9 and higher. 
+
+When using Java 9 and higher, javax.annotation has been removed from its default classpath. That's why we Eclipse can't find it.
+
+---
+
+Solution
+
+1. Download the javax.annotation-api-1.2.jar from 
+
+http://central.maven.org/maven2/javax/annotation/javax.annotation-api/1.2/javax.annotation-api-1.2.jar
+
+2. Copy the JAR file to the lib folder of your project
+
+---
+
+Use the following steps to add it to your Java Build Path.
+
+3. Right-click your project, select Properties
+
+4. On left-hand side, click Java Build Path
+
+5. In top-center of dialog, click Libraries
+
+6. Click Classpath and then Click Add JARs ...
+
+7. Navigate to the JAR file <your-project>/lib/javax.annotation-api-1.2.jar
+
+8. Click OK then click Apply and Close
+
+Eclipse will perform a rebuild of your project and it will resolve the related build errors.
+
+
+
+Here is a subtle point you need to be aware of with "prototype" scoped beans.
+
+For "prototype" scoped beans, Spring does not call the @PreDestroy method.  Gasp!  
+
+I didn't know this either until I dug through the Spring reference manual researching a student's question.
+
+Here is the answer from the Spring reference manual. Section 1.5.2
+
+https://docs.spring.io/spring/docs/current/spring-framework-reference/core.html#beans-factory-scopes-prototype
+
+---         
+
+In contrast to the other scopes, Spring does not manage the complete lifecycle of a
+prototype bean: the container instantiates, configures, and otherwise assembles a
+prototype object, and hands it to the client, with no further record of that prototype
+instance.
+
+Thus, although initialization lifecycle callback methods are called on all objects regardless of scope, in the case of prototypes, configured destruction lifecycle callbacks are not called. The client code must clean up prototype-scoped objects and release expensive resources that the prototype bean(s) are holding. 
+
+To get the Spring container to release resources held by prototype-scoped beans, try using a custom bean post-processor, which holds a reference to beans that need to be cleaned up.
+
+---
+
+This also applies to XML configuration.

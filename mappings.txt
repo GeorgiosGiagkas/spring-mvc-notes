@@ -1,0 +1,228 @@
+Enity Lifecycle:
+Detach: If entity is detached, it is not associated with a hibernate session
+Merge: If instance is detached form session, then merge will reattach to session.
+Persist: Transitions new isntances to menaged state. Next flush/commit will save in db.
+Remove: Transitions managed entity to be removed. Next flush/commit will delete from db.
+Refresh: REload/synch object with data from db. Prevents stale data
+
+
+
+
+@OneToOne
+
+cascade types:
+1.Persist: If entity is persisted /saved, related entity will also be persisted.
+2.Remove: If entity is removed/deleted, related entity will also be deleted.
+3.Refresh: If enity is refreshed, related entity will also be refreshed
+4.Detach: If entity is detached(not associated w/session), then related entity will also be detached
+5.Merge: If entity is merged, then related enity will also be merged.
+6.All: All of above cascade types.
+
+No need to change existring database schema when you want bi-diractional using mappedBy.
+For example:
+
+In enity InstructorDetail:
+@OneToOne(mappedBy="instructorDetail", cascade=CascadeType.ALL)
+private Instructor instructor;
+
+In Entrity Instructor:
+@OneToOne(cascade=CascadeType.ALL)
+@JoinColumn(name="instructor_detail_id)
+private InstructorDetail instructorDetail;
+
+
+
+If no Cascade.Remove then you need to remove associated object reference.break bi-directinal link- by setting reference to null!
+
+
+@Many to One
+Best Practice-> FetchType : use Lazy loading instead of Eager 
+
+Default Fetch types
+@OneToOne -> FetchType.EAGER
+@ManyToOne -> FetchType.EAGER
+@OneToMany -> FetchType.LAZY
+@ManyToMany -> FetchType.LAZY
+
+To Retrieve lazy data, you will need to open a Hibernate session
+1.Option: session.get and call getters
+2.Option: Hibernate query with HQL (JOIN FETCH)
+
+FAQ: How to load the courses at a later time in the application?
+FAQ: How load the courses at a later time in the application?
+
+
+
+Question
+I've watched your 2 solutions for loading related data after session closing. Both, either getting related courses before closing session and using JOIN FETCH seem to be negating of lazy loading (using those solutions we completely resign of lazy loading.
+
+Is there any good solution to load these data somewhere else in the app? Should I open new session?
+
+---
+
+Answer
+Yes, you can load it later with using a new session, just make use of HQL
+
+Here's the code snippet. Make note of HQL in bold
+
+            session = factory.getCurrentSession();
+            
+            session.beginTransaction();
+            
+            // get courses for a given instructor
+            Query<Course> query = session.createQuery("select c from Course c "
+                                                    + "where c.instructor.id=:theInstructorId",    
+                                                    Course.class);
+            
+            query.setParameter("theInstructorId", theId);
+            
+            List<Course> tempCourses = query.getResultList();
+            
+            System.out.println("tempCourses: " + tempCourses);
+---
+
+Here's the full example. 
+
+:-)
+
+---
+
+package com.luv2code.hibernate.demo;
+
+import java.util.List;
+
+import org.hibernate.Session;
+import org.hibernate.SessionFactory;
+import org.hibernate.cfg.Configuration;
+import org.hibernate.query.Query;
+
+import com.luv2code.hibernate.demo.entity.Course;
+import com.luv2code.hibernate.demo.entity.Instructor;
+import com.luv2code.hibernate.demo.entity.InstructorDetail;
+
+public class GetCoursesLater {
+
+    public static void main(String[] args) {
+
+        // create session factory
+        SessionFactory factory = new Configuration()
+                                .configure("hibernate.cfg.xml")
+                                .addAnnotatedClass(Instructor.class)
+                                .addAnnotatedClass(InstructorDetail.class)
+                                .addAnnotatedClass(Course.class)
+                                .buildSessionFactory();
+        
+        // create session
+        Session session = factory.getCurrentSession();
+        
+        try {            
+            
+            // start a transaction
+            session.beginTransaction();
+                        
+            // get the instructor from db
+            int theId = 1;
+            Instructor tempInstructor = session.get(Instructor.class, theId);                    
+            
+            System.out.println("luv2code: Instructor: " + tempInstructor);    
+            
+            // commit transaction
+            session.getTransaction().commit();
+            
+            // close the session
+            session.close();
+
+            System.out.println("\nluv2code: The session is now closed!\n");
+
+            //
+            // THIS HAPPENS SOMEWHERE ELSE / LATER IN THE PROGRAM
+
+            // YOU NEED TO GET A NEW SESSION
+            //
+            
+            System.out.println("\n\nluv2code: Opening a NEW session \n");
+
+            session = factory.getCurrentSession();
+            
+            session.beginTransaction();
+            
+            // get courses for a given instructor
+            Query<Course> query = session.createQuery("select c from Course c "
+                                                    + "where c.instructor.id=:theInstructorId",    
+                                                    Course.class);
+            
+            query.setParameter("theInstructorId", theId);
+            
+            List<Course> tempCourses = query.getResultList();
+            
+            System.out.println("tempCourses: " + tempCourses);
+            
+            // now assign to instructor object in memory
+            tempInstructor.setCourses(tempCourses);
+            
+            System.out.println("luv2code: Courses: " + tempInstructor.getCourses());
+            
+            session.getTransaction().commit();
+            
+            System.out.println("luv2code: Done!");
+        }
+        finally {
+            
+            // add clean up code
+            session.close();
+            
+            factory.close();
+        }
+    }
+
+}
+
+
+FAQ: @JoinColumn ... where does it find the column?
+@JoinColum ... where does it find the column?
+
+Question
+
+In the Course class,we have OneToMany relation with reviews with join column course_id.
+
+But in course table we do not have column course_id.
+
+Ideally when we say @JoinColumn a new column should be created in course table ... isn't it?
+
+How does @JoinColum know where to find the join column?
+
+---
+
+Answer
+
+The JoinColumn is actually fairly complex and it goes through a number of advanced steps to find the desired column.
+
+This info below is from the documentation
+
+Source: http://docs.oracle.com/javaee/7/api/javax/persistence/JoinColumn.html#name--
+
+---
+
+The table in which it is found depends upon the context.
+
+- If the join is for a OneToOne or ManyToOne mapping using a foreign key mapping strategy, the foreign key column is in the table of the source entity or embeddable.
+
+- If the join is for a unidirectional OneToMany mapping using a foreign key mapping strategy, the foreign key is in the table of the target entity.
+
+- If the join is for a ManyToMany mapping or for a OneToOne or bidirectional ManyToOne/OneToMany mapping using a join table, the foreign key is in a join table.
+
+- If the join is for an element collection, the foreign key is in a collection table.
+
+--
+
+So as you can see, it depends on the context.
+
+In our training video, we are using @OneToMany uni-directional (course has one-to-many reviews).
+
+As a result, the join column / foreign key column is in the target entity. In this case, the target entity is the Review class. So, you will find the join column "course_id" in the "review" table.
+
+
+
+The best way to map a many-to-many association with extra columns when using JPA and Hibernate
+Many to Many
+https://vladmihalcea.com/the-best-way-to-map-a-many-to-many-association-with-extra-columns-when-using-jpa-and-hibernate/

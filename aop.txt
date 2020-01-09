@@ -1,0 +1,229 @@
+AOP= Aspect oriented programming
+
+Aspect encapsulates cross-cutting logic(Cross-Cutting Concerns-logic)
+Thus, basic common  functionallity across the program.
+Aspect can be reused at multiple locations.
+Same aspect/class can be applied based on configuration.
+
+*Proxy design pattern
+MAIn->Proxy -><Logging aspect> -> Target object
+
+Use cases:
+Logging, security, transactions,
+Audit logging(who, when,...)
+Exception handling(log exception and notify devops team)
+Api management(how many times a method been called, analytics)
+
+Disadvantages:
+Too many ascpecs are hard to follow
+Minor performance cost for aspects execution
+
+Terminology:
+Aspect: module of code for cross cuttng concerns.
+Advice: What action is taken and when it should be applied
+	Types:
+	a.Before advice: run before the method
+	b.After finally advice: run after the method(finally)
+	c.After returning advice: run after the method(successful excecution)
+	d.After throwing advice: run after method(if exception is thrown)
+	e.Around advice: run before and after method
+Join Point: When to apply code during program execution
+Pointcut: A predicate expression for where advice should be applied
+Weaving: Connection aspection to target objects to create advised object
+	 Types:
+	 a.Compile time
+	 b.load time
+	 c.run-time(slowest)
+
+
+AOP Frameworks:
+1.Spring AOP:(needs AspectJ Jars)
+Pros:
+	a.simpler
+	b.Uses proxy pattern
+	c.Canmigrate to AspectJ when using @Aspect annotation
+Cons:
+	a.Supports only method-level joint-points
+	b.Minor performance issues (run-time weaving)
+	c.Can only apply aspects to beans created by Spring app context
+
+2.AspectJ:
+Pros:
+	a.Supports all join point(method, constructor,field)
+	b.Works on POJO not just beans
+	c.Faster
+	d.Complete AOP support
+Cons:
+	a.Compile time weaving requires extra compilation step
+	b.AspectJ syntac is complex
+
+
+Recommendation:Start with Spring AOP. Solves most enterprise application issues
+(*Spring AOP is a light AOP implementation)
+
+Download AspectJ jar
+https://mvnrepository.com/artifact/org.aspectj/aspectjweaver
+
+
+
+Pointcut: If the conditions(predicate expression) are met , apply the given advice code.
+
+Pointcut Expression Language (taken from AspectJ)
+execution(modifiers-pattern? return-type-pattern declaring-type-pattern?
+			     method-name-pattern(param-pattern) throws-pattern?)
+Optional patterns ("?")
+
+patterns can use Wildcards
+(*) matces on everything
+Example:
+@Before("execution(* * processCreditCard*())")
+-> any modifier, any return type, any method starting with processCreditCard
+
+
+Param-pattern
+() - matches a method with no param
+(*) - matches a method with one argument of any type
+(..) - matches amethod with 0 or more arguments of any type
+
+Match on methods in a package dao.
+@Before ("execution(* com.gg.aopdemo.dao.*.*(..))")
+For all classes, for all methods, for all argument types(0 to many arguments)
+
+Use fully qualified name:
+@Before("execution(* add*(com.gg.aopdemo.Account))")
+
+
+Declaring pointcut expressiion once and reusing it in multiple advices:
+Pointcut declaration->
+@Pointcut("execution(* com.gg.aopdemo.dao.*.*(..))")
+public void forDaoPackage(){}
+
+@Before("forDaoPackage()")
+publiv void beforeMethod(){ bla bla }
+
+
+Combining pointcut expression:(example exluding getter/setters)
+And(&&), OR(||), NOT(!)
+
+@Before("expression1() && expression2()")
+
+
+
+How to control order of advices being applied when they match the same condition??
+->Refactor : place advices in separete Aspects and use @Order annotation
+
+*You can use a Class lets say AopExpression that holds pointcut decarations that other Aspect classes can use. Dont forget to use fully qualified class name when you reference AopExpression class into the other Aspects.Example:
+@Before("com.gg.aopdemo.aspect.AopExpression.forDaoPackage()")
+public void doStuff(){bla bla}
+
+
+
+Access and display Method Signature and Arguments!!!
+Use JointPoint as argument in advice method!
+
+Get Method Signature:
+@Before("bla bla")
+public void beforeMethod(JointPoint jp){
+       MethodSignature ms =(MethodSignature) jp.getSignature();
+       bla bla
+}
+
+Get Method Arguments:
+@Before("bla bal")
+public void beforeMethod(JointPoint jp){
+       Object[] args= jp.getArgs();
+}
+
+
+
+
+
+@AfterReturning advide can be used to post-processing Data
+You can also access the result that is returned!
+Example:
+
+@AfterReturning(
+	pointcut="execution(* com.gg.aopdemo.dao.findAll())",
+	returning="result")
+public void afterReturningFindAll(JointPoint jp, List<Account> result){
+       //print result
+}
+
+Modify/post-process Data
+Example:
+@AfterReturning(
+	pointcut="execution(* com.gg.aopdemo.dao.findAll())",
+	returning="result")
+public void afterReturningModifyFindAll(JointPoint jp, List<Account> result){
+       	makeListNamesUpperCaseMethod(result);
+}
+
+
+
+@AfterThrowing advice can be used to "spy" on exceptions thrown
+Example:
+@AfterThrowing(
+	pointcut="execution(* com.gg.aopdemo.dao.findAll())",
+	throwing="exc")
+public void afterThrowingExceptionFindAllAdvice(JointPoint, jp, Throwable exc){
+       //print exception
+}
+
+(*You cannot handle exception using @AfterThrowing but you can do it using @Around)
+
+
+
+
+@After will run for success or failure(after finally advice)
+*The @After advice will run before @AfterThrowing (like finally) or success
+*The @After advice has no acccess to the exception. Use @AfterThrowing instead
+
+
+
+@Around can be used for logging, pre and pro procession and instrumentation-profiling(mesearue performance of a method!), manage exceptions!
+*You can get a referenc to "proceeding join point" and use it  to execute target method.
+Example:
+@Around("execution(* com.gg.aopdemo.service.*.getFortune(..))")
+public Object afterGetFortune(ProceedingJoinPoint jp) throws Throwable{
+       long start = System.currentTimeMillis();
+       Object result = jp.proceed();//executes the method
+       long end = System.currentTimeMillis();
+       System.out.println("duration = "+ (end-start));
+       return result;
+}
+
+*Caution with order of output! System.out.println is different output stream compared to Logger that Spring uses. So to use logger create a new logger with a custom name (usually we give the name of the class that uses it):
+private static Logger logger = Logger.getLogger(getClass.getName());
+then:
+logger.info("bla bla bla");
+
+
+
+
+Handling exceptions with @Around
+@Around("execution(* com.gg.aopdemo.service.*.getFortune(..))")
+public Object aroundGetFortune(ProceedingJoinPoint jp) throws Throwable{
+       Object result = null;
+       try{
+		result = jp.proceed();
+       }
+       catch(Exception exc){
+       		logger.warning("Exception: "+exc.getMessage());
+		//handle
+		result = "Handled exception";
+       }
+       return result;
+}
+
+or rethrow it:
+@Around("execution(* com.gg.aopdemo.service.*.getFortune(..))")
+public Object aroundGetFortune(ProceedingJoinPoint jp) throws Throwable{
+       try{
+		Object result = jp.proceed();
+		return result;
+       }
+       catch(Exception exc){
+       		logger.warning("Re throwing Exception: "+exc.getMessage());
+		throw exc;
+       }
+}

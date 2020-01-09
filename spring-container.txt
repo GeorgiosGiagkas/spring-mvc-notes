@@ -1,0 +1,125 @@
+Primary Functions
+1.Inversion of control -> create and mange objects
+2.dependency injection -> Inject object's dependencies
+
+
+How to configure Spring Container->
+a.xml confuguration file(legacy)
+b.java annotations (modern)
+c.java source code(modern)
+
+Spring Development Process:
+1.Configure Spring Beans
+	    in applicationContext.xml
+	    <beans>
+		<bean id="myCoach"
+		      class="com.gg.springdemo.BaseballCoach">
+		</bean>
+	    </beans>
+2.Create Spring Container
+	 Also know as ApplicationContext
+	 a.ClassPathXmlApplicationContext
+		//create a spring container
+		ClassPathXmlApplicationContext context = new ClassPathXmlApplicationContext("applicationContext.xml");
+	 b.AnnotaionConfigApplicationContext
+	 c.GenericWebApplicationContext
+3.Retrievce Beans from Spring Container
+	    Coach coach= context.getBean("myCoach",Coach.class);
+
+
+What is Spring Bean:??
+When Java objects are created by the Spring Container, then Spring refers to them as "Spring Beans".
+
+In the early days, there was a term called "Java Beans". Spring Beans have a similar concept but Spring Beans do not follow all of the rigorous requirements of Java Beans.
+
+In summary, whenever you see "Spring Bean", just think Java object. :-)
+
+
+
+
+Why do we specify the Coach interface in getBean()?
+
+For example:
+
+Coach theCoach = context.getBean("myCoach", Coach.class); 
+
+---
+
+Answer
+
+When we pass the interface to the method, behind the scenes Spring will cast the object for you.
+
+context.getBean("myCoach", Coach.class)  
+
+However, there are some slight differences than normal casting.
+
+From the Spring docs:
+
+Behaves the same as getBean(String), but provides a measure of type safety by throwing a BeanNotOfRequiredTypeException if the bean is not of the required type. This means that ClassCastException can't be thrown on casting the result correctly, as can happen with getBean(String).
+
+
+-------Dependency Injection ----------------
+
+"Dependency" same thing as "helper objects".
+
+Two common injections:
+a. Constructor Injection
+b.Setter Injection
+
+Spring injects dependencies to get a funcitonal bean back!
+
+Reference values from properties file.
+->You can create a whatever.properties file and use this applicationCotext.xml
+*You have to load properties file to Spring config file
+<!-- load  property file -->
+<context:property-placeholder location="classpath:sport.properties"/>
+
+-------Bean scopes ----
+Bean Scopes:
+1.Lifecycle of a bean
+2.How long does the bean live?
+3.How many instancies are created.
+4.How is the bean shared?
+
+By default the bean scope is a Sigleton!!!Shared reference of te Same bean(Stateless bean!)
+Use scope="singleton" in bean.
+Other scopes:
+prototype->creates new bean instance for each container request
+request
+session
+global-session
+
+
+Bean Lifecycle:
+Container Started-> Bean instantiated->Dependencies injected->Interanl String processing->Custom init methods->Bean ready to use-> Container is shut down -> custom destroy method->stop
+
+Custom Bean lifecycle methods/hooks -> upan bean instantiation/destruction
+init-method="doInit"
+destroy-method="doMyCleanUp"
+
+Special Note about init and destroy Method Signatures
+
+When using XML configuration, I want to provide additional details regarding the method signatures of the init-method  and destroy-method .
+
+Access modifier
+The method can have any access modifier (public, protected, private)
+
+Return type
+The method can have any return type. However, "void' is most commonly used. If you give a return type just note that you will not be able to capture the return value. As a result, "void" is commonly used.
+
+Method name
+The method can have any method name.
+
+Arguments
+The method can not accept any arguments. The method should be no-arg.
+
+
+
+There is a subtle point you need to be aware of with "prototype" scoped beans.
+For "prototype" scoped beans, Spring does not call the destroy method.  Gasp!  
+---
+In contrast to the other scopes, Spring does not manage the complete lifecycle of a prototype bean: the container instantiates, configures, and otherwise assembles a prototype object, and hands it to the client, with no further record of that prototype instance.
+
+Thus, although initialization lifecycle callback methods are called on all objects regardless of scope, in the case of prototypes, configured destruction lifecycle callbacks are not called. The client code must clean up prototype-scoped objects and release expensive resources that the prototype bean(s) are holding. 
+---
+This also applies to both XML configuration and Annotation-based configuration.

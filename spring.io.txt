@@ -1,0 +1,4 @@
+https://repo.spring.io/release/org/springframework/spring/
+
+To Add Spring Jars.
+Right click-> create folder jar-> copy paste jar files from extractes spring.io ulr (lib folder)->right click in project and select prefrences->Java build path-> libraries->add jars-> select all jars from lib-> applay and close -> preferenced librearies are created
